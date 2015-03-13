@@ -1,97 +1,59 @@
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"   Filename: .vimrc                                                         "
-" Maintainer: Michael J. Smalley <michaeljsmalley@gmail.com>                 "
-"        URL: http://github.com/michaeljsmalley/dotfiles                     "
-"                                                                            "
-"                                                                            "
-" Sections:                                                                  "
-"   01. General ................. General Vim behavior                       "
-"   02. Events .................. General autocmd events                     "
-"   03. Theme/Colors ............ Colors, fonts, etc.                        "
-"   04. Vim UI .................. User interface behavior                    "
-"   05. Text Formatting/Layout .. Text, tab, indentation related             "
-"   06. Custom Commands ......... Any custom command aliases                 "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#!/bin/bash
+############################
+# .make.sh
+# This script creates symlinks from the home directory to any desired dotfiles in ~/dotfiles
+############################
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 01. General                                                                "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-set nocompatible         " get rid of Vi compatibility mode. SET FIRST!
+########## Variables
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 02. Events                                                                 "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-filetype plugin indent on " filetype detection[ON] plugin[ON] indent[ON]
+dir=~/dotfiles                    # dotfiles directory
+olddir=~/dotfiles_old             # old dotfiles backup directory
+files="bashrc vimrc bash_profile"    # list of files/folders to symlink in homedir
 
-" In Makefiles DO NOT use spaces instead of tabs
-autocmd FileType make setlocal noexpandtab
-" In Ruby files, use 2 spaces instead of 4 for tabs
-autocmd FileType ruby setlocal sw=2 ts=2 sts=2
+##########
 
-" Enable omnicompletion (to use, hold Ctrl+X then Ctrl+O while in Insert mode.
-set ofu=syntaxcomplete#Complete
+# create dotfiles_old in homedir
+echo -n "Creating $olddir for backup of any existing dotfiles in ~ ..."
+mkdir -p $olddir
+echo "done"
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 03. Theme/Colors                                                           "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-set t_Co=256              " enable 256-color mode.
-syntax enable             " enable syntax highlighting (previously syntax on).
-colorscheme molokai       " set colorscheme
+# change to the dotfiles directory
+echo -n "Changing to the $dir directory ..."
+cd $dir
+echo "done"
 
-" Prettify JSON files
-autocmd BufRead,BufNewFile *.json set filetype=json
-autocmd Syntax json sou ~/.vim/syntax/json.vim
+# move any existing dotfiles in homedir to dotfiles_old directory, then create symlinks from the homedir to any files in the ~/dotfiles directory specified in $files
+for file in $files; do
+    echo "Moving any existing dotfiles from ~ to $olddir"
+    mv ~/.$file ~/dotfiles_old/
+    echo "Creating symlink to $file in home directory."
+    ln -s $dir/$file ~/.$file
+done
 
-" Prettify Vagrantfile
-autocmd BufRead,BufNewFile Vagrantfile set filetype=ruby
-
-" Prettify Markdown files
-augroup markdown
-  au!
-  au BufNewFile,BufRead *.md,*.markdown setlocal filetype=ghmarkdown
-augroup END
-
-" Highlight characters that go over 80 columns (by drawing a border on the 81st)
-if exists('+colorcolumn')
-  set colorcolumn=81
-  highlight ColorColumn ctermbg=red
+install_zsh () {
+# Test to see if zshell is installed.  If it is:
+if [ -f /bin/zsh -o -f /usr/bin/zsh ]; then
+    # Clone my oh-my-zsh repository from GitHub only if it isn't already present
+    if [[ ! -d $dir/oh-my-zsh/ ]]; then
+        git clone http://github.com/robbyrussell/oh-my-zsh.git
+    fi
+    # Set the default shell to zsh if it isn't currently set to zsh
+    if [[ ! $(echo $SHELL) == $(which zsh) ]]; then
+        chsh -s $(which zsh)
+    fi
 else
-  highlight OverLength ctermbg=red ctermfg=white guibg=#592929
-  match OverLength /\%81v.\+/
-endif
+    # If zsh isn't installed, get the platform of the current machine
+    platform=$(uname);
+    # If the platform is Linux, try an apt-get to install zsh and then recurse
+    if [[ $platform == 'Linux' ]]; then
+        sudo apt-get install zsh
+        install_zsh
+    # If the platform is OS X, tell the user to install zsh :)
+    elif [[ $platform == 'Darwin' ]]; then
+        echo "Please install zsh, then re-run this script!"
+        exit
+    fi
+fi
+}
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 04. Vim UI                                                                 "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-set number                " show line numbers
-set numberwidth=6         " make the number gutter 6 characters wide
-set cul                   " highlight current line
-set laststatus=2          " last window always has a statusline
-set nohlsearch            " Don't continue to highlight searched phrases.
-set incsearch             " But do highlight as you type your search.
-set ignorecase            " Make searches case-insensitive.
-set ruler                 " Always show info along bottom.
-set showmatch
-set statusline=%<%f\%h%m%r%=%-20.(line=%l\ \ col=%c%V\ \ totlin=%L%)\ \ \%h%m%r%=%-40(bytval=0x%B,%n%Y%)\%P
-set visualbell
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 05. Text Formatting/Layout                                                 "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-set autoindent            " auto-indent
-set tabstop=2             " tab spacing
-set softtabstop=2         " unify
-set shiftwidth=2          " indent/outdent by 2 columns
-set shiftround            " always indent/outdent to the nearest tabstop
-set expandtab             " use spaces instead of tabs
-set smartindent           " automatically insert one extra level of indentation
-set smarttab              " use tabs at the start of a line, spaces elsewhere
-set nowrap                " don't wrap text
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" 06. Custom Commands                                                        "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-" Prettify JSON files making them easier to read
-command PrettyJSON %!python -m json.tool
-
+install_zsh
